@@ -46,29 +46,35 @@ type ArrayReplace<TArray extends unknown[], TIndex extends number, TItem, TResul
       ? ArrayReplace<TArray, TIndex, TItem, [...TResult, TItem]>
       : ArrayReplace<TArray, TIndex, TItem, [...TResult, TArray[TResult['length']]]>;
 
-type Indexer<T extends number, TResult extends 0[] = []> = TResult['length'] extends T ? TResult : Indexer<T, [...TResult, 0]>;
+type MathSub<T1 extends unknown[], T2 extends unknown[]> =
+  T1 extends [unknown, ...infer Rest1 extends unknown[]]
+    ? T2 extends [unknown, ...infer Rest2 extends unknown[]]
+      ? MathSub<Rest1, Rest2>
+      : T1['length']
+    : 0;
 
-type ArrayShift<TArray extends unknown[], TIndexer extends 0[], TResult extends unknown[] = []> =
-  TResult['length'] extends TArray['length']
-    ? TResult
-    : TIndexer['length'] extends TArray['length']
-      ? ArrayShift<TArray, [0], [...TResult, TArray[0]]>
-      : ArrayShift<TArray, [...TIndexer, 0], [...TResult, TArray[TIndexer['length']]]>
-
-type MatrixCol<TMatrix extends unknown[][], TIndex extends number, TResult extends unknown[] = []> =
+type MatrixCol<TMatrix extends Connect4Cell[][], TIndex extends number, TResult extends Connect4Cell[] = []> =
   TResult['length'] extends TMatrix['length']
     ? TResult
     : MatrixCol<TMatrix, TIndex, [...TResult, TMatrix[TResult['length']][TIndex]]>
 
-type ShiftBoardLeft<TBoard  extends Connect4Cell[][], TResult extends unknown[][] = []> =
-  TBoard extends [infer R extends Connect4Cell[], ...infer Rest extends Connect4Cell[][]]
-    ? ShiftBoardLeft<Rest, [...TResult, ArrayShift<R, Indexer<TResult['length']>>]>
-    : TResult;
-
-type ShiftBoardRight<TBoard  extends Connect4Cell[][], TResult extends unknown[][] = []> =
-  TBoard extends [...infer Rest extends Connect4Cell[][], infer R extends Connect4Cell[]]
-    ? ShiftBoardRight<Rest, [ArrayShift<R, Indexer<TResult['length']>>, ...TResult]>
-    : TResult;
+type BoardDiagsHoriz<TBoard extends Connect4Cell[][], TStartCol extends 0[] = [], TCol extends 0[] = [], TRow extends 0[] = [], TDiagDown extends Connect4Cell[] = [], TDiagUp extends Connect4Cell[] = [], TResult extends Connect4Cell[][] = []> = 
+TStartCol['length'] extends TBoard[0]['length']
+  ? TResult
+  : TCol['length'] extends TBoard[0]['length']
+    ? BoardDiagsHoriz<TBoard, [...TStartCol, 0], [...TStartCol, 0], [], [], [], [...TResult, TDiagDown, TDiagUp]>
+    : TRow['length'] extends TBoard['length']
+      ? BoardDiagsHoriz<TBoard, [...TStartCol, 0], [...TStartCol, 0], [], [], [], [...TResult, TDiagDown, TDiagUp]>
+      : BoardDiagsHoriz<TBoard, TStartCol, [...TCol, 0], [...TRow, 0], [...TDiagDown, TBoard[TRow['length']][TCol['length']]], [...TDiagUp, TBoard[MathSub<TBoard, [...TRow, 0]>][TCol['length']]], TResult>;
+      
+type BoardDiagsVert<TBoard extends Connect4Cell[][], TStartRow extends 0[] = [0], TCol extends 0[] = [], TRow extends 0[] = [0], TDiagDown extends Connect4Cell[] = [], TDiagUp extends Connect4Cell[] = [], TResult extends Connect4Cell[][] = []> = 
+TStartRow['length'] extends TBoard['length']
+  ? TResult
+  : TCol['length'] extends TBoard[0]['length']
+    ? BoardDiagsVert<TBoard, [...TStartRow, 0], [], [...TStartRow, 0], [], [], [...TResult, TDiagDown, TDiagUp]>
+    : TRow['length'] extends TBoard['length']
+      ? BoardDiagsVert<TBoard, [...TStartRow, 0], [], [...TStartRow, 0], [], [], [...TResult, TDiagDown, TDiagUp]>
+      : BoardDiagsVert<TBoard, TStartRow, [...TCol, 0], [...TRow, 0], [...TDiagDown, TBoard[TRow['length']][TCol['length']]], [...TDiagUp, TBoard[MathSub<TBoard, [...TRow, 0]>][TCol['length']]], TResult>;
 
 type WinnerOrContinue<TWinner, TContinue> = TWinner extends Connect4Chips ? TWinner : TContinue;
 type WinnerStateOrContinue<TWinner, TContinue> = TWinner extends Connect4Chips ? `${TWinner} Won` : TContinue;
@@ -92,7 +98,10 @@ type CheckWinnerCol<TBoard extends Connect4Cell[][], TProcessed extends 0[] = []
     ? null
     : WinnerOrContinue<CheckWinnerArray<MatrixCol<TBoard, TProcessed['length']>>, CheckWinnerCol<TBoard, [...TProcessed, 0]>>
 
-type CheckWinnerDiag<TBoard extends Connect4Cell[][]> = WinnerOrContinue<CheckWinnerCol<ShiftBoardLeft<TBoard>>, CheckWinnerCol<ShiftBoardRight<TBoard>>>
+type CheckWinnerDiag<TBoard extends Connect4Cell[][]> = WinnerOrContinue<
+  CheckWinnerRow<BoardDiagsHoriz<TBoard>>,
+  CheckWinnerRow<BoardDiagsVert<TBoard>>
+>;
 
 type NextBoard<TBoard extends Connect4Board, TMove extends number, TChip extends Connect4Chips, TProcessed extends 0[] = [], TLast extends number = 0> =
   TProcessed['length'] extends TBoard['length']
