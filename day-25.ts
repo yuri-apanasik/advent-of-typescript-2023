@@ -1,0 +1,1 @@
+type Done = true;
